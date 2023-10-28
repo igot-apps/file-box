@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.2/dropzone.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.2/min/dropzone.min.css">
+  
+    <title>File Sharing App</title>
+</head>
+<body>
+    <h1>File Sharing App</h1>
+    <form id="uploadForm" class="dropzone" enctype="multipart/form-data">
+        <input type="file" name="files" multiple>
+        <button type="submit">Upload File</button>
+    </form>
+    <h2>Uploaded Files:</h2>
+    <ul id="fileList"></ul>
+
+    <script>
+        const uploadForm = document.getElementById("uploadForm");
+        const fileList = document.getElementById("fileList");
+
+        uploadForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const formData = new FormData(uploadForm);
+
+            try {
+                const response = await fetch("/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    getFileList();
+                }
+            } catch (error) {
+                console.error("Error uploading file:", error);
+            }
+        });
+
+        async function getFileList() {
+            fileList.innerHTML = "";
+
+            try {
+                const response = await fetch("/files");
+                const files = await response.json();
+
+                files.forEach((file) => {
+                    const listItem = document.createElement("li");
+                
+                    listItem.innerHTML = `
+                        <a href="/download/${file}" target="_blank">${file}</a>
+                        <button onclick="deleteFile('${file}')">Delete</button>
+                    `;
+                    fileList.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error("Error fetching file list:", error);
+            }
+        }
+
+        async function deleteFile(filename) {
+            const password = prompt("Enter password to delete the file:");
+            if (password === null) {
+                return; // User canceled the prompt
+            }
+
+            try {
+                const response = await fetch(`/delete/${filename}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ password }),
+                });
+
+                if (response.ok) {
+                    getFileList();
+                } else {
+                    const errorData = await response.json();
+                    console.error("Error deleting file:", errorData.error);
+                  alert("Check console for error")
+                }
+            } catch (error) {
+                console.error("Error deleting file:", error);
+                alert("Check console for error")
+            }
+        }
+
+        getFileList();
+
+      // Initialize Dropzone
+      Dropzone.autoDiscover = false;
+      const myDropzone = new Dropzone("#uploadForm", {
+        url: "/upload", // Specify the upload URL
+        init: function() {
+          this.on("success", function(file, response) {
+            getFileList();
+          });
+        },
+      });
+    </script>
+</body>
+</html>
